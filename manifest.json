@@ -1,0 +1,9 @@
+{
+  "name": "Luna - Jouw Zorgzame Companion",
+  "short_name": "Luna",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#f8f4f0",
+  "theme_color": "#c4a484",
+  "icons": []
+}
