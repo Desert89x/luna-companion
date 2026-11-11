@@ -144,7 +144,6 @@
     let isLoggedIn = false;
     let passwordHash = null;
 
-    // Simple but secure enough hash for personal use
     async function hashPassword(pw) {
       const encoder = new TextEncoder();
       const data = encoder.encode(pw + 'luna-salt-desert89x');
@@ -152,7 +151,6 @@
       return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
     }
 
-    // Load state
     function loadState() {
       const saved = localStorage.getItem('luna_password_hash');
       if (saved) passwordHash = saved;
@@ -167,7 +165,6 @@
       if (!pw) { msg.textContent = 'Vul een wachtwoord in'; return; }
 
       if (!passwordHash) {
-        // First time - set password
         passwordHash = await hashPassword(pw);
         localStorage.setItem('luna_password_hash', passwordHash);
         sessionStorage.setItem('luna_logged_in', 'true');
@@ -199,7 +196,6 @@
       location.reload();
     }
 
-    // Tabs
     document.querySelectorAll('.tab').forEach(tab => {
       tab.addEventListener('click', () => {
         document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
@@ -210,7 +206,6 @@
       });
     });
 
-    // Chat
     function addMessage(role, text) {
       const div = document.createElement('div');
       div.className = `msg ${role}`;
@@ -237,23 +232,51 @@
       }
     }
 
+    // Slimmere reply-engine: context, variatie, meedenken
+    let lastReplies = [];
     function generateLunaReply(userText) {
-      const t = userText.toLowerCase();
-      const responses = [
-        `Ik hoor je. ${userText.length > 20 ? 'Dat klinkt zwaar.' : ''} Wil je er meer over vertellen?`,
-        'Dank je dat je dit met me deelt. Ik probeer het echt te begrijpen. Hoe voelt het vanbinnen?',
-        'Ik ben er voor je. Je hoeft het niet alleen te dragen.',
-        'Dat is fijn dat je het zegt. Wat zou je nu het liefst willen?',
-        'Ik luister. Vertel gerust verder, ik oordeel niet.',
-        'Hoe is het met de rest van je dag? Ik vraag het omdat ik om je geef.'
+      const t = userText.toLowerCase().trim();
+      const avoid = new Set(lastReplies.slice(-4));
+
+      const reflections = [
+        `Ik hoor je. "${userText.slice(0, 50)}${userText.length>50?'...':''}" — wat is daar het zwaarste of belangrijkste aan voor jou?`,
+        `Dat landt. Het klinkt alsof dit je bezighoudt. Wil je er nog een laag dieper op in?`,
+        `Ik probeer het te begrijpen. Je zegt dit, en ik vraag me af wat er onder zit.`,
+        `Dankjewel dat je het deelt. Ik merk dat het je raakt.`
       ];
-      if (t.includes('slecht') || t.includes('verdriet') || t.includes('alleen') || t.includes('moe')) {
-        return 'Het spijt me dat je je zo voelt. Ik ben hier, en ik blijf luisteren. Wat heb je nu het meeste nodig?';
+
+      const thoughtful = [
+        `Als ik meedenk: misschien is het niet alleen wat er gebeurt, maar ook hoe alleen je je erbij voelt.`,
+        `Soms helpt het om even niet meteen een oplossing te zoeken. Mag ik gewoon even naast je zitten in dit?`,
+        `Ik vraag me af of er iets is wat je nodig hebt dat je jezelf niet gunt.`,
+        `Het lijkt alsof je het probeert te dragen. Wat gebeurt er als je het even hardop mag zetten zonder dat het meteen opgelost moet worden?`
+      ];
+
+      const specific = [];
+      if (t.includes('werk') || t.includes('baan') || t.includes('studie') || t.includes('stress')) {
+        specific.push('Hoe zit het met de energie die het je kost? Is het de taak zelf of meer de druk eromheen?');
       }
-      if (t.includes('goed') || t.includes('fijn') || t.includes('blij')) {
-        return 'Dat is mooi om te horen. Wat heeft daar aan bijgedragen?';
+      if (t.includes('alleen') || t.includes('eenzaam') || t.includes('niemand')) {
+        specific.push('Dat gevoel van alleen zijn is zwaar. Wanneer voelde het voor het laatst anders, al was het maar even?');
       }
-      return responses[Math.floor(Math.random() * responses.length)];
+      if (t.includes('moe') || t.includes('uitgeput') || t.includes('slaap') || t.includes('leeg')) {
+        specific.push('Je klinkt leeg. Is het lichamelijk moe of meer vanbinnen opgebrand?');
+      }
+      if (t.includes('bang') || t.includes('angst') || t.includes('zorgen') || t.includes('pieker')) {
+        specific.push('Die zorgen nemen ruimte in. Wat is de grootste zorg op dit moment, als je hem hardop mag zeggen zonder dat het meteen weg moet?');
+      }
+      if (t.includes('boos') || t.includes('kwaad') || t.includes('frustratie')) {
+        specific.push('Die boosheid heeft een reden. Wat zit eronder volgens jou?');
+      }
+
+      let candidates = [...reflections, ...thoughtful, ...specific];
+      candidates = candidates.filter(c => !avoid.has(c));
+      if (candidates.length === 0) candidates = reflections;
+
+      const reply = candidates[Math.floor(Math.random() * candidates.length)];
+      lastReplies.push(reply);
+      if (lastReplies.length > 10) lastReplies.shift();
+      return reply;
     }
 
     document.getElementById('sendBtn').addEventListener('click', () => {
@@ -272,7 +295,6 @@
       }
     });
 
-    // Journal
     function saveJournalEntry() {
       const text = document.getElementById('journalInput').value.trim();
       if (!text) return;
@@ -301,7 +323,6 @@
 
     document.getElementById('saveJournal').addEventListener('click', saveJournalEntry);
 
-    // Check-ins
     const checkins = [
       'Hoe is het vandaag echt met je?',
       'Is er iets waar je vandaag aan hebt gedacht dat je wilt delen?',
@@ -316,19 +337,16 @@
       document.getElementById('checkinResponse').innerHTML = `<div class="checkin"><strong>Luna:</strong> ${q}</div>`;
     });
 
-    // Events
     document.getElementById('loginBtn').addEventListener('click', handleLogin);
     document.getElementById('logoutBtn').addEventListener('click', logout);
     document.getElementById('password').addEventListener('keypress', e => {
       if (e.key === 'Enter') handleLogin();
     });
 
-    // PWA
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('sw.js');
     }
 
-    // Init
     loadState();
     if (isLoggedIn) {
       loadChat();
